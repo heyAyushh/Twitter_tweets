@@ -15,6 +15,43 @@ import json
 def verboseprint(*args, **kwargs): print(*args, **kwargs)
 
 
+def findurls(d):
+
+    urls = []
+
+    text = str(d['text'])
+
+    if text[0] == 'R' and text[1] == 'T' and text[2] == ' ':
+        verboseprint("Retweet", end="\t")
+
+        # finding urls in json twitter response
+
+    if 'extended_tweet'in d:
+        if 'entities' in d['extended_tweet']:
+            if 'urls' in d['extended_tweet']['entities']:
+                for url in d['extended_tweet']['entities']['urls']:
+                    if 'expanded_url' in url:
+                        urls.append(url['expanded_url'])
+                        verboseprint(urls, end="\t")
+            else:
+                if 'entities' in d:
+                    if 'urls' in d['entities']:
+                        for url in d['entities']['urls']:
+                            urls.append(url['expanded_url'])
+                            verboseprint(url['expanded_url'], end="\t")
+
+    pattern = "http\S+"
+    '''rls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]),data)'''
+    tweettexturls = re.findall(pattern, text)
+
+    print(tweettexturls, end="\t")
+    for url in tweettexturls:
+        urls.append(url)
+    verboseprint('\n')
+
+    return urls
+
+
 class TwitterStreamer():
     """
     Class for streaming and processing live tweets.
@@ -50,45 +87,23 @@ class TwitterListener(StreamListener):
             objects = data.splitlines()
             for line in objects:
                 d = json.loads(line)
+            
 
-            text = list(d['text'])
-            urls = []
+            # confirming pattern whether the tweet has a technical event info
+            pattern = "(event|events|Register|RSVP|tickets|conference|conferences|tickets)"
 
-            if text[0] == 'R' and text[1] == 'T' and text[2] == ' ':
-                verboseprint("Retweet", end="\t")
-
-            if 'extended_tweet'in d:
-                if 'entities' in d['extended_tweet']:
-                    if 'urls' in d['extended_tweet']['entities']:
-                        for url in d['extended_tweet']['entities']['urls']:
-                            if 'expanded_url' in url:
-                                urls.append(url['expanded_url'])
-                                verboseprint(urls, end="\t")
-                    else:
-                        if 'entities' in d:
-                            if 'urls' in d['entities']:
-                                for url in d['entities']['urls']:
-                                    urls.append(url['expanded_url'])
-                                    verboseprint(url['expanded_url'], end="\t")
-
-            text = "".join(text)
-            pattern = "http\S+"
-            '''rls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]),data)'''
-            tweettexturls = re.findall(pattern, text)
-            print(tweettexturls, end="\t")
-            for url in tweettexturls:
-                urls.append(url)
-            """ Retweet don't have urls most of the time"""
-
-            verboseprint('\n')
-
+            text = str(d['text'])
+            if bool(re.search(pattern,text)):
+                urls = findurls(d, urls)
+                with open('./urls.txt', 'a') as tf:
+                    if(urls):
+                        for url in urls:
+                            tf.write((url))
+                            tf.write('\n')
+        
             with open(self.fetched_tweets_filename, 'a') as tf:
                 tf.write(data)
-            with open('./urls.txt', 'a') as tf:
-                if(urls):
-                    for url in urls:
-                        tf.write((url))
-                        tf.write('\n')
+            
 
             return True
         except IndexError as e:
@@ -112,10 +127,9 @@ class TweetAnalyzer():
 if __name__ == '__main__':
 
     # Authenticate using config.py and connect to Twitter Streaming API.
-    """  hash_tag_list = ['Python','AWS','Azure','Java','Sql'] """
     """ hash_tag_list = ["Tech conference","tech conference","Pyconindia2019","pyconindia2019","#ServerlessDays"] """
     hash_tag_list = ["Python events", "hellorubyworld", "railsgirls",
-                     "CodeFirstGirls", "WWCodeLondon", "tasomaniac", "ClaventEvents", "#Testcon2019"]
+                     "CodeFirstGirls", "WWCodeLondon", "tasomaniac", "ClaventEvents", "#Testcon2019", "POST/CON", "MSFTReactor", "RedHat", "rxjslive", "typescript", "TheDevConf", "Azure", "gophercon", "GOTOcph", "css","AndroidDev",'Python','AWS','Java','Sql',"#ServerlessDays","AWS_edu","droidcon"]
     fetched_tweets_filename = "tweets.txt"
     twitter_streamer = TwitterStreamer()
     twitter_streamer.stream_tweets(fetched_tweets_filename, hash_tag_list)
